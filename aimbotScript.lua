@@ -4,20 +4,10 @@ local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 -- Settings
-local aimRadius = 45
+local aimRadius = 35
+local aimHeightTolerance = 10.5  -- Only target players within 10 studs of height difference
 
--- Create Hitbox
-local hitbox = Instance.new("Part")
-hitbox.Shape = Enum.PartType.Ball
-hitbox.Anchored = true
-hitbox.CanCollide = false
-hitbox.Material = Enum.Material.ForceField
-hitbox.Transparency = 0.7
-hitbox.Color = Color3.fromRGB(0, 255, 0)
-hitbox.Size = Vector3.new(aimRadius * 2, aimRadius * 2, aimRadius * 2)
-hitbox.Parent = workspace
-
--- ESP Management
+-- Create ESP Management
 local espFolder = Instance.new("Folder")
 espFolder.Name = "MaxV5_ESP"
 espFolder.Parent = game.CoreGui
@@ -72,21 +62,23 @@ local function isAlive(player)
     return hum and hum.Health > 0 and hum:GetState() ~= Enum.HumanoidStateType.Dead
 end
 
--- Get closest target in 3D space (removing vertical tolerance)
-local function getClosestPlayer()
+-- Get closest target on same XZ level within height tolerance
+local function getClosestHorizontalPlayer()
     local closest = nil
     local shortestDist = math.huge
-    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return nil end
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and isAlive(player) then
             local theirRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if theirRoot then
-                local distance = (theirRoot.Position - myRoot.Position).Magnitude
-                if distance <= aimRadius then
-                    if distance < shortestDist then
-                        shortestDist = distance
+            local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+            if theirRoot and myRoot then
+                local deltaY = math.abs(theirRoot.Position.Y - myRoot.Position.Y)
+                local horizontalDist = (Vector3.new(theirRoot.Position.X, 0, theirRoot.Position.Z) - Vector3.new(myRoot.Position.X, 0, myRoot.Position.Z)).Magnitude
+
+                if horizontalDist <= aimRadius and deltaY <= aimHeightTolerance then
+                    if horizontalDist < shortestDist then
+                        shortestDist = horizontalDist
                         closest = player
                     end
                 end
@@ -102,8 +94,6 @@ RunService.RenderStepped:Connect(function()
     local myChar = LocalPlayer.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myRoot then return end
-
-    hitbox.Position = myRoot.Position
 
     -- Update ESP
     for _, player in ipairs(Players:GetPlayers()) do
@@ -124,11 +114,12 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Aimbot Aim: Always aim directly at the target's head, regardless of vertical difference.
-    local target = getClosestPlayer()
+    -- Aimbot Aim
+    local target = getClosestHorizontalPlayer()
     if target and target.Character and target.Character:FindFirstChild("Head") then
-        local headPos = target.Character.Head.Position
-        local cameraPos = Camera.CFrame.Position
-        Camera.CFrame = CFrame.new(cameraPos, headPos)
+        local tPos = target.Character.Head.Position
+        local cPos = Camera.CFrame.Position
+        local horizontalTarget = Vector3.new(tPos.X, cPos.Y, tPos.Z)
+        Camera.CFrame = CFrame.new(cPos, horizontalTarget)
     end
 end)
