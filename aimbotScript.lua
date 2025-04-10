@@ -4,7 +4,7 @@ local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 -- Settings
-local aimRadius = 35
+local aimRadius = 25
 local aimHeightTolerance = 10.5  -- Only target players within 10 studs of height difference
 
 -- Create ESP Management
@@ -106,7 +106,7 @@ RunService.RenderStepped:Connect(function()
             if espGui and head and root and isAlive(player) then
                 espGui.Adornee = head
                 local dist = (myRoot.Position - root.Position).Magnitude
-                espGui.TextLabel.Text = player.Name .. " | " .. math.floor(dist) .. " studs"
+                espGui.TextLabel.Text = player.Name .. " | " .. math.floor(dist) .. " studs away"
                 espGui.Enabled = true
             elseif espGui then
                 espGui.Enabled = false
