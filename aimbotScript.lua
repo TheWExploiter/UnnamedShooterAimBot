@@ -5,11 +5,11 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Settings
 local aimRadius = 35.5
-local aimHeightTolerance = 7.5 
+local aimHeightTolerance = 7.5  -- Only target players within 10 studs of height difference
 
 -- Create ESP Management
 local espFolder = Instance.new("Folder")
-espFolder.Name = "Cats_ESP"
+espFolder.Name = "MaxV5_ESP"
 espFolder.Parent = game.CoreGui
 
 local function createESP(player)
@@ -123,14 +123,9 @@ RunService.RenderStepped:Connect(function()
         -- Calculate horizontal position (XZ plane) for smooth aiming
         local horizontalTarget = Vector3.new(tPos.X, cPos.Y, tPos.Z)
 
-        -- Aim at the player's head position, adjusting both XZ and Y
-        Camera.CFrame = CFrame.new(cPos, tPos)
-
-        -- Adjust camera angle based on the height difference of the target's head (Y-axis)
-        local angleDiff = tPos.Y - cPos.Y
-        local angle = math.atan2(angleDiff, (tPos - cPos).Magnitude)
-
-        -- Update the camera's CFrame to properly aim at the target's head
-        Camera.CFrame = Camera.CFrame * CFrame.Angles(angle, 0, 0)
+        -- Aim at the target's head position by adjusting both horizontal and vertical angles
+        local direction = (tPos - cPos).unit -- Normalized direction vector to the target
+        local targetCFrame = CFrame.new(cPos, cPos + direction) -- Adjust the CFrame based on the direction
+        Camera.CFrame = targetCFrame
     end
 end)
