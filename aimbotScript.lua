@@ -5,7 +5,7 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Settings
 local aimRadius = 25
-local aimHeightTolerance = 10.5  -- Only target players within 10 studs of height difference
+local aimHeightTolerance = 7.5  -- Only target players within 10 studs of height difference
 
 -- Create ESP Management
 local espFolder = Instance.new("Folder")
