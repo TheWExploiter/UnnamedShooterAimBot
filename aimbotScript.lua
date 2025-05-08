@@ -1,13 +1,74 @@
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
+
+local Window = OrionLib:MakeWindow({
+    Name = "Aimbot Script | By Cat",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "AimbotCatConfig",
+    IntroEnabled = true,
+    IntroText = "Aimbot Script | By Cat",
+    CloseCallback = function() end
+})
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Settings
+-- Default settings
+local aimbotEnabled = false
+local espEnabled = false
 local aimRadius = 35.5
-local aimHeightTolerance = 7.5  -- Only target players within 10 studs of height difference
+local aimHeightTolerance = 7.5
 
--- Create ESP Management
+-- UI Tab
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+MainTab:AddToggle({
+    Name = "Enable Aimbot",
+    Default = false,
+    Callback = function(v)
+        aimbotEnabled = v
+    end
+})
+
+MainTab:AddToggle({
+    Name = "Enable ESP",
+    Default = false,
+    Callback = function(v)
+        espEnabled = v
+    end
+})
+
+MainTab:AddTextbox({
+    Name = "Aimbot Radius",
+    Default = tostring(aimRadius),
+    TextDisappear = false,
+    Callback = function(value)
+        local num = tonumber(value)
+        if num then
+            aimRadius = num
+        end
+    end
+})
+
+MainTab:AddTextbox({
+    Name = "Height Tolerance",
+    Default = tostring(aimHeightTolerance),
+    TextDisappear = false,
+    Callback = function(value)
+        local num = tonumber(value)
+        if num then
+            aimHeightTolerance = num
+        end
+    end
+})
+
+-- ESP Management
 local espFolder = Instance.new("Folder")
 espFolder.Name = "MaxV5_ESP"
 espFolder.Parent = game.CoreGui
@@ -39,30 +100,28 @@ local function removeESP(player)
     end
 end
 
--- Auto-manage ESP for players joining/leaving
 Players.PlayerAdded:Connect(function(player)
-    createESP(player)
+    if player ~= LocalPlayer then
+        createESP(player)
+    end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
--- Setup ESP for players already in-game
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
         createESP(player)
     end
 end
 
--- Check if player is alive
 local function isAlive(player)
     local char = player.Character
     local hum = char and char:FindFirstChild("Humanoid")
     return hum and hum.Health > 0 and hum:GetState() ~= Enum.HumanoidStateType.Dead
 end
 
--- Get closest target on same XZ level within height tolerance
 local function getClosestHorizontalPlayer()
     local closest = nil
     local shortestDist = math.huge
@@ -76,10 +135,14 @@ local function getClosestHorizontalPlayer()
                 local deltaY = math.abs(theirRoot.Position.Y - myRoot.Position.Y)
                 local horizontalDist = (Vector3.new(theirRoot.Position.X, 0, theirRoot.Position.Z) - Vector3.new(myRoot.Position.X, 0, myRoot.Position.Z)).Magnitude
 
-                if horizontalDist <= aimRadius and deltaY <= aimHeightTolerance then
-                    if horizontalDist < shortestDist then
-                        shortestDist = horizontalDist
-                        closest = player
+                -- Check team only if both players are on a team
+                local isSameTeam = (player.Team == LocalPlayer.Team)
+                if (player.Team and isSameTeam) or not player.Team then
+                    if horizontalDist <= aimRadius and deltaY <= aimHeightTolerance then
+                        if horizontalDist < shortestDist then
+                            shortestDist = horizontalDist
+                            closest = player
+                        end
                     end
                 end
             end
@@ -89,43 +152,40 @@ local function getClosestHorizontalPlayer()
     return closest
 end
 
--- Main Loop
+-- Main loop
 RunService.RenderStepped:Connect(function()
     local myChar = LocalPlayer.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myRoot then return end
 
-    -- Update ESP
+    -- ESP Updates
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local espGui = espFolder:FindFirstChild(player.Name)
             local char = player.Character
             local head = char and char:FindFirstChild("Head")
             local root = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChild("Humanoid")
 
-            if espGui and head and root and isAlive(player) then
+            if espGui and head and root and hum and isAlive(player) then
                 espGui.Adornee = head
-                local dist = (myRoot.Position - root.Position).Magnitude
-                espGui.TextLabel.Text = player.Name .. " | " .. math.floor(dist) .. " studs away"
-                espGui.Enabled = true
+                local healthPercent = math.floor((hum.Health / hum.MaxHealth) * 100)
+                espGui.TextLabel.Text = player.Name .. " | " .. math.floor((myRoot.Position - root.Position).Magnitude) .. " studs | " .. healthPercent .. "% HP"
+                espGui.Enabled = espEnabled
             elseif espGui then
                 espGui.Enabled = false
             end
         end
     end
 
-    -- Aimbot Aim
-    local target = getClosestHorizontalPlayer()
-    if target and target.Character and target.Character:FindFirstChild("Head") then
-        local tPos = target.Character.Head.Position
-        local cPos = Camera.CFrame.Position
-
-        -- Calculate horizontal position (XZ plane) for smooth aiming
-        local horizontalTarget = Vector3.new(tPos.X, cPos.Y, tPos.Z)
-
-        -- Aim at the target's head position by adjusting both horizontal and vertical angles
-        local direction = (tPos - cPos).unit -- Normalized direction vector to the target
-        local targetCFrame = CFrame.new(cPos, cPos + direction) -- Adjust the CFrame based on the direction
-        Camera.CFrame = targetCFrame
+    -- Aimbot Updates
+    if aimbotEnabled then
+        local target = getClosestHorizontalPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local tPos = target.Character.Head.Position
+            local cPos = Camera.CFrame.Position
+            local direction = (tPos - cPos).Unit
+            Camera.CFrame = CFrame.new(cPos, cPos + direction)
+        end
     end
 end)
